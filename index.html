@@ -102,6 +102,8 @@ h3{font-size:17px;margin:0;font-weight:700;color:var(--berry)}
 .foot-note{display:flex;flex-direction:column;align-items:center;gap:10px;margin:6px auto 14px;max-width:60ch}
 .foot-note p{margin:0;font-size:15px;line-height:1.7}
 .foot-note .btn{text-decoration:none}
+nav.tabs a.contact{color:var(--ink);text-decoration:none;font-size:14px;padding:4px 14px}
+nav.tabs a.contact:hover{background:linear-gradient(180deg,#FFAFC4,#FF8DAC)}
 .intro{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .intro b{color:var(--berry);font-size:17px}
 .intro p{margin:4px 0 0;font-size:15px;max-width:60ch}
@@ -454,10 +456,10 @@ function view(){var h=(location.hash||'').replace('#','');
 function shell(inner){
   var v=view();
   function tab(id,t){return '<a href="#'+id+'"'+(v===id?' aria-current="page"':'')+'>'+t+'</a>';}
-  var nav=(unlocked()?tab('progress','委託進度')+tab('board','進度看板')+tab('orders','委託管理')+tab('history','歷史紀錄')+'<a href="#progress" data-act="logout" class="lock">登出</a>':'<a href="#login" class="lock"'+(v==='login'?' aria-current="page"':'')+'>後台登入</a>');
+  var nav=(unlocked()?tab('progress','委託進度')+tab('board','進度看板')+tab('orders','委託管理')+tab('history','歷史紀錄')+'<a href="#progress" data-act="logout" class="lock">登出</a>':'<a class="btn small primary contact" href="https://jessroin.github.io/Jessroin-Commission-Website/" target="_blank" rel="noopener">聯絡潔諾</a><a href="#login" class="lock"'+(v==='login'?' aria-current="page"':'')+'>後台登入</a>');
   return '<header class="top"><div class="top-in"><a class="brand" href="#progress">潔諾 Jessroin<small>委託進度'+(unlocked()?'・後台':'')+'</small></a>'+
     '<nav class="tabs">'+nav+'</nav>'+(unlocked()?'<span class="save" id="save" aria-live="polite">'+esc(saveState)+'</span>':'')+'</div></header><main>'+syncBar()+inner+'</main>'+
-    '<footer class="foot">'+(v==='progress'?'<div class="foot-note"><p>這裡的排單是手動更新的，如果你已經付了訂金，但名字還沒出現在這裡，請耐心等候，我會盡快更新。</p><a class="btn primary" href="https://jessroin.github.io/Jessroin-Commission-Website/" target="_blank" rel="noopener">聯絡潔諾</a></div>':'')+'<div>潔諾 Jessroin・委託進度'+(PUB.updated?'・最後更新 '+esc(PUB.updated.replace(/-/g,'/')):'')+'</div></footer>';
+    '<footer class="foot">'+(v==='progress'?'<div class="foot-note"><p>這裡的排單是手動更新的!<br>如果你已經付了訂金，但名字還沒出現在這裡，請耐心等候，我會盡快更新。</p></div>':'')+'<div>潔諾 Jessroin・委託進度'+(PUB.updated?'・最後更新 '+esc(PUB.updated.replace(/-/g,'/')):'')+'</div></footer>';
 }
 
 function phase(o){return o.phase||(doneCount(o)===0?'queue':'doing');}
