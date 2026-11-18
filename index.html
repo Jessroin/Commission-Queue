@@ -99,6 +99,9 @@ h3{font-size:17px;margin:0;font-weight:700;color:var(--berry)}
 .steps i.on{background:var(--berry);border-color:var(--berry)}
 .steps b{font-size:13px;color:var(--berry);margin-left:6px;min-width:38px;text-align:right}
 .kanban.flow{grid-auto-columns:minmax(200px,1fr)}
+.foot-note{display:flex;flex-direction:column;align-items:center;gap:10px;margin:6px auto 14px;max-width:60ch}
+.foot-note p{margin:0;font-size:15px;line-height:1.7}
+.foot-note .btn{text-decoration:none}
 .intro{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .intro b{color:var(--berry);font-size:17px}
 .intro p{margin:4px 0 0;font-size:15px;max-width:60ch}
@@ -454,7 +457,7 @@ function shell(inner){
   var nav=(unlocked()?tab('progress','委託進度')+tab('board','進度看板')+tab('orders','委託管理')+tab('history','歷史紀錄')+'<a href="#progress" data-act="logout" class="lock">登出</a>':'<a href="#login" class="lock"'+(v==='login'?' aria-current="page"':'')+'>後台登入</a>');
   return '<header class="top"><div class="top-in"><a class="brand" href="#progress">潔諾 Jessroin<small>委託進度'+(unlocked()?'・後台':'')+'</small></a>'+
     '<nav class="tabs">'+nav+'</nav>'+(unlocked()?'<span class="save" id="save" aria-live="polite">'+esc(saveState)+'</span>':'')+'</div></header><main>'+syncBar()+inner+'</main>'+
-    '<footer class="foot">潔諾 Jessroin・委託進度'+(PUB.updated?'・最後更新 '+esc(PUB.updated.replace(/-/g,'/')):'')+'</footer>';
+    '<footer class="foot">'+(v==='progress'?'<div class="foot-note"><p>這裡的排單是手動更新的，如果你已經付了訂金，但名字還沒出現在這裡，請耐心等候，我會盡快更新。</p><a class="btn primary" href="https://jessroin.github.io/Jessroin-Commission-Website/" target="_blank" rel="noopener">聯絡潔諾</a></div>':'')+'<div>潔諾 Jessroin・委託進度'+(PUB.updated?'・最後更新 '+esc(PUB.updated.replace(/-/g,'/')):'')+'</div></footer>';
 }
 
 function phase(o){return o.phase||(doneCount(o)===0?'queue':'doing');}
@@ -466,9 +469,7 @@ function boardView(){
   var A=pubList().sort(function(a,b){var x=(a.year||0)*100+(parseInt(a.slot,10)||99),y=(b.year||0)*100+(parseInt(b.slot,10)||99);return x-y||byDue(a,b);});
   var Q=A.filter(function(o){return phase(o)==='queue';}),D=A.filter(function(o){return phase(o)==='doing';});
   var t0=today(),mDue=A.filter(function(o){var d=pd(o.due);return d&&d.getFullYear()===t0.getFullYear()&&d.getMonth()===t0.getMonth();}).length;
-  var h='<section class="intro panel"><div><b>關於這個排單頁</b><p>這裡的排單是手動更新的，如果你已經付了訂金，但名字還沒出現在這裡，請耐心等候，我會盡快更新。</p></div>'+
-    '<a class="btn primary" href="https://jessroin.github.io/Jessroin-Commission-Website/" target="_blank" rel="noopener">聯絡潔諾</a></section>';
-  h+='<div class="row spread"><h2>目前委託進度<small>'+t0.getFullYear()+'/'+(t0.getMonth()+1)+'/'+t0.getDate()+'</small></h2>'+
+  var h='<div class="row spread"><h2>目前委託進度<small>'+t0.getFullYear()+'/'+(t0.getMonth()+1)+'/'+t0.getDate()+'</small></h2>'+
     '</div>';
   if(unlocked())h+='<p class="notice" style="margin:0">這是委託人看到的公開頁面。</p>';
 
