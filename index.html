@@ -35,7 +35,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* header */
 header.top{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);border-bottom:var(--edge)}
 .top-in{max-width:1180px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:14px 20px;flex-wrap:wrap}
-.brand{font-weight:700;font-size:22px;color:var(--berry);margin-right:auto;line-height:1.2;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand{text-decoration:none;font-weight:700;font-size:22px;color:var(--berry);margin-right:auto;line-height:1.2;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .brand small{font-size:14px;color:var(--ink);font-weight:500}
 nav.tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end;order:2}
 nav.tabs a{padding:6px 12px;border-radius:999px;text-decoration:none;color:var(--ink);font-weight:700;font-size:15px}
@@ -99,6 +99,10 @@ h3{font-size:17px;margin:0;font-weight:700;color:var(--berry)}
 .steps i.on{background:var(--berry);border-color:var(--berry)}
 .steps b{font-size:13px;color:var(--berry);margin-left:6px;min-width:38px;text-align:right}
 .kanban.flow{grid-auto-columns:minmax(200px,1fr)}
+.intro{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.intro b{color:var(--berry);font-size:17px}
+.intro p{margin:4px 0 0;font-size:15px;max-width:60ch}
+.intro .btn{text-decoration:none}
 .qsec{display:flex;flex-direction:column;gap:14px}
 .qsec h3 .cnt{font-size:14px;color:var(--muted);font-weight:500;margin-left:10px}
 .qsec.doing{border-top:6px solid var(--pink-deep)}
@@ -152,6 +156,9 @@ td .mini button.on:disabled{background:var(--berry);border-color:var(--berry);co
 .right{text-align:center}
 td .mini{justify-content:center}
 td.wrap{text-align:center}
+table.main td,table.main th{text-align:center;vertical-align:middle}
+table.main td .mini{justify-content:center}
+table.main td>.chip,table.main td>.toggle{margin:0 auto}
 a.link{color:var(--berry)}
 .yeartabs{display:flex;gap:8px;flex-wrap:wrap}
 .yeartabs button{border:var(--edge);background:#fff;border-radius:999px;padding:4px 16px;cursor:pointer;font-size:17px;font-weight:700;color:var(--ink)}
@@ -317,7 +324,7 @@ function gh(){return S&&S.settings&&S.settings.gh&&S.settings.gh.token?S.setting
 function ghUrl(g){return 'https://api.github.com/repos/'+encodeURIComponent(g.owner)+'/'+encodeURIComponent(g.repo)+'/contents/data.js';}
 function ghFetch(g,method,body){
   return fetch(ghUrl(g)+(method==='GET'?'?ref='+encodeURIComponent(g.branch||'main')+'&t='+Date.now():''),{method:method,cache:'no-store',headers:{'Authorization':'Bearer '+g.token,'Accept':'application/vnd.github+json'},body:body?JSON.stringify(body):undefined})
-    .then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(!r.ok)throw {status:r.status,msg:j.message||('HTTP '+r.status)};return j;});});
+    .then(function(r){var ex=r.headers.get('github-authentication-token-expiration');if(ex&&S&&S.settings&&S.settings.gh&&S.settings.gh.token===g.token){var d=ex.slice(0,10);if(/^\d{4}-\d{2}-\d{2}$/.test(d))S.settings.gh.expires=d;}return r.json().catch(function(){return {};}).then(function(j){if(!r.ok)throw {status:r.status,msg:j.message||('HTTP '+r.status)};return j;});});
 }
 function ghSync(){var g=gh();if(!STATIC||!g)return;
   ghPull(g).then(function(d){
@@ -335,13 +342,16 @@ function ghPush(g,content,retry){
 function ghMsg(e){var s=e&&e.status;return s===401?'權杖無效或已過期':s===403?'權杖沒有寫入權限':s===404?'找不到這個 repository':(e&&e.msg)||'連線失敗';}
 function syncBar(){if(!STATIC||!unlocked())return '';
   if(!gh())return '<div class="notice row spread" style="margin:0"><span>還沒設定 GitHub 自動更新，設定一次之後，每次修改都會直接更新公開頁。</span><button class="btn small" data-act="gh">設定</button></div>';
-  if(ghErr)return '<div class="notice row spread" style="margin:0;background:var(--pink);border-color:var(--pink-deep)"><span>GitHub 更新失敗：'+esc(ghErr)+'</span><span class="row" style="gap:6px"><button class="btn small" data-act="ghretry">重試</button><button class="btn small ghost" data-act="gh">設定</button></span></div>';
+  var gx=gh(),ed=gx.expires&&daysTo(gx.expires);
+  if(gx.expires&&ed<=14&&!ghErr)return '<div class="notice row spread" style="margin:0;'+(ed<0?'background:var(--pink);border-color:var(--pink-deep)':'')+'"><span>'+(ed<0?'GitHub 權杖已在 '+esc(gx.expires.replace(/-/g,'/'))+' 過期，公開頁目前不會更新，請換一把新的權杖。':'GitHub 權杖將在 '+(ed===0?'今天':ed+' 天後')+'（'+esc(gx.expires.replace(/-/g,'/'))+'）到期，記得先換一把新的權杖。')+'</span><button class="btn small" data-act="gh">更新權杖</button></div>';
+  if(ghErr)return '<div class="notice row spread" style="margin:0;background:var(--pink);border-color:var(--pink-deep)"><span>GitHub 更新失敗：'+esc(ghErr)+(/過期|無效/.test(ghErr)?'，請到「GitHub 設定」換一把新的權杖':'')+'</span><span class="row" style="gap:6px"><button class="btn small" data-act="ghretry">重試</button><button class="btn small ghost" data-act="gh">設定</button></span></div>';
   return '';}
 function ghPanel(){var g=(S.settings&&S.settings.gh)||{owner:'jessroin',repo:'',branch:'main',token:''};
   return '<section class="panel" style="display:flex;flex-direction:column;gap:12px"><h3>GitHub 自動更新設定</h3>'+
   '<p class="calc" style="margin:0">設定後，每次在後台修改都會直接更新 GitHub 上的 data.js，約 1 分鐘後公開頁就會變。權杖會跟委託資料一起用你的密碼加密，不會以明碼存在任何地方。</p>'+
   '<div class="form">'+f('gh-owner','GitHub 帳號','<input id="gh-owner" value="'+esc(g.owner)+'">')+f('gh-repo','Repository 名稱','<input id="gh-repo" value="'+esc(g.repo)+'" placeholder="例：Jessroin-Commission-Queue">')+
-  f('gh-branch','分支','<input id="gh-branch" value="'+esc(g.branch||'main')+'">')+f('gh-token','存取權杖（Fine-grained token）','<input id="gh-token" type="password" autocomplete="off" value="'+esc(g.token)+'" placeholder="github_pat_…">')+'</div>'+
+  f('gh-branch','分支','<input id="gh-branch" value="'+esc(g.branch||'main')+'">')+f('gh-token','存取權杖（Fine-grained token）','<input id="gh-token" type="password" autocomplete="off" value="'+esc(g.token)+'" placeholder="github_pat_…">')+
+  f('gh-exp','權杖到期日（到期前 14 天會提醒）',dateIn('gh-exp',g.expires||''))+'</div>'+
   '<div class="row"><button class="btn primary" data-act="ghsave">儲存並測試連線</button>'+(gh()?'<button class="btn ghost" data-act="ghoff">取消自動更新</button>':'')+'<span class="calc" id="ghmsg">'+esc(ghState)+'</span></div></section>';}
 var S=null, KEY=null, viewing=null, loginErr='', loginBusy=false;
 function unlocked(){return !!S;}
@@ -350,7 +360,8 @@ function b64(buf){var s='',a=new Uint8Array(buf);for(var i=0;i<a.length;i++)s+=S
 function unb64(s){var b=atob(s),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
 function deriveKey(pw){return crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']).then(function(base){
   return crypto.subtle.deriveKey({name:'PBKDF2',salt:unb64(VAULT.salt),iterations:VAULT.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);});}
-function openVault(key){return crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(VAULT.iv)},key,unb64(VAULT.ct)).then(function(buf){return JSON.parse(new TextDecoder().decode(buf));});}
+function normalize(d){(d.orders||[]).forEach(function(o){if(o.kind==='template'&&(o.stages.length!==1||o.stages[0]!=='完')){var fin=o.status==='done'||o.done.indexOf('完')>=0;o.stages=['完'];o.done=fin?['完']:[];}});return d;}
+function openVault(key){return crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(VAULT.iv)},key,unb64(VAULT.ct)).then(function(buf){return normalize(JSON.parse(new TextDecoder().decode(buf)));});}
 function sealVault(){var iv=crypto.getRandomValues(new Uint8Array(12));
   return crypto.subtle.encrypt({name:'AES-GCM',iv:iv},KEY,new TextEncoder().encode(JSON.stringify(S))).then(function(ct){return {v:1,iter:VAULT.iter,salt:VAULT.salt,iv:b64(iv),ct:b64(ct)};});}
 function idb(){return new Promise(function(res,rej){try{var r=indexedDB.open('jessroin-commission',1);r.onupgradeneeded=function(){r.result.createObjectStore('k');};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};}catch(e){rej(e);}});}
@@ -440,8 +451,8 @@ function view(){var h=(location.hash||'').replace('#','');
 function shell(inner){
   var v=view();
   function tab(id,t){return '<a href="#'+id+'"'+(v===id?' aria-current="page"':'')+'>'+t+'</a>';}
-  var nav=tab('progress','委託進度')+(unlocked()?tab('board','進度看板')+tab('orders','委託管理')+tab('history','歷史紀錄')+'<a href="#progress" data-act="logout" class="lock">登出</a>':'<a href="#login" class="lock"'+(v==='login'?' aria-current="page"':'')+'>後台登入</a>');
-  return '<header class="top"><div class="top-in"><div class="brand">潔諾 Jessroin<small>委託進度'+(unlocked()?'・後台':'')+'</small></div>'+
+  var nav=(unlocked()?tab('progress','委託進度')+tab('board','進度看板')+tab('orders','委託管理')+tab('history','歷史紀錄')+'<a href="#progress" data-act="logout" class="lock">登出</a>':'<a href="#login" class="lock"'+(v==='login'?' aria-current="page"':'')+'>後台登入</a>');
+  return '<header class="top"><div class="top-in"><a class="brand" href="#progress">潔諾 Jessroin<small>委託進度'+(unlocked()?'・後台':'')+'</small></a>'+
     '<nav class="tabs">'+nav+'</nav>'+(unlocked()?'<span class="save" id="save" aria-live="polite">'+esc(saveState)+'</span>':'')+'</div></header><main>'+syncBar()+inner+'</main>'+
     '<footer class="foot">潔諾 Jessroin・委託進度'+(PUB.updated?'・最後更新 '+esc(PUB.updated.replace(/-/g,'/')):'')+'</footer>';
 }
@@ -455,9 +466,12 @@ function boardView(){
   var A=pubList().sort(function(a,b){var x=(a.year||0)*100+(parseInt(a.slot,10)||99),y=(b.year||0)*100+(parseInt(b.slot,10)||99);return x-y||byDue(a,b);});
   var Q=A.filter(function(o){return phase(o)==='queue';}),D=A.filter(function(o){return phase(o)==='doing';});
   var t0=today(),mDue=A.filter(function(o){var d=pd(o.due);return d&&d.getFullYear()===t0.getFullYear()&&d.getMonth()===t0.getMonth();}).length;
-  var h='<div class="row spread"><h2>目前委託進度<small>'+t0.getFullYear()+'/'+(t0.getMonth()+1)+'/'+t0.getDate()+'</small></h2>'+
+  var h='<section class="intro panel"><div><b>關於這個排單頁</b><p>這裡的排單是手動更新的，如果你已經付了訂金，但名字還沒出現在這裡，請耐心等候，我會盡快更新。</p></div>'+
+    '<a class="btn primary" href="https://jessroin.github.io/Jessroin-Commission-Website/" target="_blank" rel="noopener">聯絡潔諾</a></section>';
+  h+='<div class="row spread"><h2>目前委託進度<small>'+t0.getFullYear()+'/'+(t0.getMonth()+1)+'/'+t0.getDate()+'</small></h2>'+
     '</div>';
   if(unlocked())h+='<p class="notice" style="margin:0">這是委託人看到的公開頁面。</p>';
+
   h+='<section class="tiles">'+tile('進行中',D.length+' 件','正在繪製',true)+tile('排隊中',Q.length+' 件','等待開始繪製')+'</section>';
   function card(o){return '<div class="card qcard"><div class="row spread" style="gap:8px"><span class="who">'+esc(o.client)+'</span>'+(phase(o)==='queue'?'<span class="when">'+esc(slotLabel(o))+'</span>':'')+'</div><div class="what">'+kindChip(o)+esc(o.item)+'</div></div>';}
   function col(title,list,cls){return '<div class="col qcol '+cls+'"><div class="col-h"><b>'+title+'</b><span>'+list.length+' 件</span></div>'+(list.length?list.map(card).join(''):'<div class="empty">目前沒有委託</div>')+'</div>';}
@@ -582,7 +596,7 @@ function table(list,manage){
     var stepBtns=manage?'<div class="mini">'+o.stages.map(function(s,i){var on=i<nd,nx=i===nd,undo=i===nd-1;
       return '<button class="'+(on?'on':'')+(nx?' next':'')+'" data-stage="'+o.id+'|'+i+'" title="'+SN[s]+(nx?'：按一下標記完成':undo?'：按一下取消完成':'')+'"'+(nx||undo?'':' disabled')+' aria-pressed="'+on+'">'+s+'</button>';}).join('')+'<span class="pct num">'+Math.round(prog(o)*100)+'%</span></div>':'<span class="pct num" style="margin:0">'+Math.round(prog(o)*100)+'%</span>';
     var c=o.contact&&/^https?:/.test(o.contact)?' <a class="link" href="'+esc(o.contact)+'" target="_blank" rel="noopener" title="聯絡">↗</a>':'';
-    h+='<tr><td data-l="委託人" class="c-who"><b>'+esc(o.client)+'</b>'+c+'</td><td data-l="項目" class="wrap">'+kindChip(o)+esc(o.item)+(o.note?'<div style="font-size:12px;color:var(--muted)">'+esc(o.note)+'</div>':'')+'</td><td data-l="授權範圍">'+licChip(o.license)+'</td><td data-l="費用" class="right num">'+money(o.price)+'</td>'+
+    h+='<tr><td data-l="委託人" class="c-who"><b>'+esc(o.client)+'</b>'+c+'</td><td data-l="項目" class="wrap">'+esc(o.item)+(o.note?'<div style="font-size:12px;color:var(--muted)">'+esc(o.note)+'</div>':'')+'</td><td data-l="授權範圍">'+licChip(o.license)+'</td><td data-l="費用" class="right num">'+money(o.price)+'</td>'+
       (o.kind==='template'?'<td colspan="2" data-l="全款"><button class="toggle" data-tog="'+o.id+'|full"><span class="chip '+(o.balancePaid?'paid':'unpaid')+'">全款 '+money(o.price)+' '+(o.balancePaid?'✓':'未付')+'</span></button></td>':
       '<td data-l="訂金"><button class="toggle" data-tog="'+o.id+'|depositPaid">'+'<span class="chip '+(o.depositPaid?'paid':'unpaid')+'">'+money(depAmt(o))+' '+(o.depositPaid?'✓':'未付')+'</span></button></td>'+
       '<td data-l="尾款"><button class="toggle" data-tog="'+o.id+'|balancePaid">'+'<span class="chip '+(o.balancePaid?'paid':'unpaid')+'">'+money(balance(o))+' '+(o.balancePaid?'✓':'未付')+'</span></button></td>')+
@@ -635,7 +649,8 @@ function modal(o){
    f('client','委託人','<input id="client" name="client" required value="'+esc(o.client)+'">')+
    f('item','委託項目','<input id="item" name="item" required placeholder="例：全身/立繪, QQ人" value="'+esc(o.item)+'">')+
    f('kind','委託類型','<select id="kind" name="kind"><option value="">一般委託（訂金 20%＋尾款 80%）</option><option value="vtuber"'+(o.kind==='vtuber'?' selected':'')+'>V皮（訂金 20%＋尾款 80%）</option><option value="template"'+(o.kind==='template'?' selected':'')+'>模板（一次付清全款）</option></select>',true)+
-   pricing(o,lic)+
+   f('license','授權範圍','<select id="license" name="license">'+lic+'</select>')+
+   f('price','委託金額 (NT$)','<input id="price" name="price" type="number" min="0" step="10" inputmode="numeric" value="'+(o.price||'')+'">')+
    '<fieldset class="f full"><legend>付款</legend>'+
    '<div class="form only-template">'+
      '<div class="f"><span class="lbl">全款金額</span><div class="calc num" id="fullcalc" style="padding:8px 0">'+money(o.price)+'</div></div>'+
@@ -648,11 +663,10 @@ function modal(o){
      f('balanceDate','尾款支付日',dateIn('balanceDate',o.balanceDate))+
      '<div class="checks f full"><label><input type="checkbox" name="depositPaid"'+(o.depositPaid?' checked':'')+'>訂金已支付</label><label><input type="checkbox" name="balancePaid"'+(o.balancePaid?' checked':'')+'>尾款已支付</label></div>'+
    '</div></fieldset>'+
-   f('orderDate','填單日',dateIn('orderDate',o.orderDate))+
-   f('due','交稿日期',dateIn('due',o.due))+
+   f('due','預計交稿日期',dateIn('due',o.due)+'<input type="hidden" name="orderDate" value="'+esc(o.orderDate||'')+'">')+
    f('slot','排單月份','<select id="slot" name="slot">'+months+'</select>')+
    f('year','歸屬年份（歷史紀錄分頁）','<input id="year" name="year" type="number" min="2015" max="2100" value="'+o.year+'">')+
-   '<fieldset class="f full"><legend>繪製流程（這件委託包含的階段）</legend><div class="checks" id="stagebox">'+stOpts+'</div>'+
+   '<fieldset class="f full only-normal"><legend>繪製流程（這件委託包含的階段）</legend><div class="checks" id="stagebox">'+stOpts+'</div>'+
    '<span class="lbl">已完成的階段（依序完成，勾後面的會自動補齊前面）・目前 <b id="dnpct" style="color:var(--berry)">'+Math.round(prog(o)*100)+'%</b></span><div class="checks" id="donebox">'+dnOpts+'</div></fieldset>'+
    f('status','狀態','<select id="status" name="status">'+Object.keys(STATUS).map(function(k){return '<option value="'+k+'"'+(o.status===k?' selected':'')+'>'+STATUS[k]+'</option>';}).join('')+'</select>')+
    f('delivered','實際交稿日',dateIn('delivered',o.delivered))+
@@ -714,12 +728,12 @@ function dpDraw(){
 }
 function dpSet(v){var inp=document.getElementById(dp.id);inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));dpClose();}
 function f(id,l,ctl,full){return '<div class="f'+(full?' full':'')+'"><label for="'+id+'">'+l+'</label>'+ctl+'</div>';}
-function blank(){var t=today();return {id:'',kind:'',lines:[],extra:0,people:1,duo:false,rush:false,autoPrice:true,year:t.getFullYear(),client:'',item:'',license:'非商業',slot:(t.getMonth()+2>12?1:t.getMonth()+2)+'月',orderDate:iso(t),due:'',delivered:'',price:0,deposit:0,depositPaid:false,depositDate:'',balancePaid:false,balanceDate:'',stages:['構','草','線','完'],done:[],status:'active',contact:'',note:''};}
+function blank(){var t=today();return {id:'',kind:'',lines:[],extra:0,people:1,duo:false,rush:false,autoPrice:false,year:t.getFullYear(),client:'',item:'',license:'非商業',slot:(t.getMonth()+2>12?1:t.getMonth()+2)+'月',orderDate:iso(t),due:'',delivered:'',price:0,deposit:0,depositPaid:false,depositDate:'',balancePaid:false,balanceDate:'',stages:['構','草','線','完'],done:[],status:'active',contact:'',note:''};}
 function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function readForm(){
   var F=document.getElementById('mform'), o=editing;
-  var g=function(n){var v=F.querySelector('[name="'+n+'"]').value.trim();return /^(depositDate|balanceDate|fullDate|orderDate|due|delivered)$/.test(n)?normDate(v):v;};
-  syncCalc();o.client=g('client');o.item=g('item');o.license=g('license');o.price=+g('price')||0;o.deposit=Math.round(o.price*0.2);
+  var g=function(n){var el=F.querySelector('[name="'+n+'"]');var v=el?el.value.trim():'';return /^(depositDate|balanceDate|fullDate|orderDate|due|delivered)$/.test(n)?normDate(v):v;};
+  o.client=g('client');o.item=g('item');o.license=g('license');o.price=+g('price')||0;o.deposit=Math.round(o.price*0.2);
   o.depositDate=g('depositDate');o.balanceDate=g('balanceDate');o.depositPaid=F.elements.depositPaid.checked;o.balancePaid=F.elements.balancePaid.checked;
   o.orderDate=g('orderDate');o.due=g('due');o.slot=g('slot');o.year=+g('year')||today().getFullYear();o.status=g('status');o.delivered=g('delivered');o.contact=g('contact');o.note=g('note');
   o.stages=ALLST.filter(function(s){return F.querySelector('input[name="stages"][value="'+s+'"]').checked;});
@@ -776,7 +790,7 @@ root.addEventListener('click',function(e){
     case 'ghretry':ghErr='';persist();render();break;
     case 'ghoff':S.settings=S.settings||{};delete S.settings.gh;ghOpen=false;commit();break;
     case 'ghsave':
-      var ng={owner:document.getElementById('gh-owner').value.trim(),repo:document.getElementById('gh-repo').value.trim(),branch:document.getElementById('gh-branch').value.trim()||'main',token:document.getElementById('gh-token').value.trim()};
+      var ng={owner:document.getElementById('gh-owner').value.trim(),repo:document.getElementById('gh-repo').value.trim(),branch:document.getElementById('gh-branch').value.trim()||'main',token:document.getElementById('gh-token').value.trim(),expires:normDate(document.getElementById('gh-exp').value)};
       var gm=document.getElementById('ghmsg');
       if(!ng.owner||!ng.repo||!ng.token){gm.textContent='請把帳號、Repository 和權杖都填好。';return;}
       gm.textContent='測試連線中…';ghSha=null;
@@ -832,7 +846,10 @@ root.addEventListener('submit',function(e){
 function updBal(){var F=document.getElementById('mform');if(!F)return;var fc=document.getElementById('fullcalc');if(fc)fc.textContent=money(+F.querySelector('[name="price"]').value||0);var pr=+F.querySelector('[name="price"]').value||0,dp=Math.round(pr*0.2);document.getElementById('depcalc').textContent=money(dp);document.getElementById('balcalc').textContent=money(pr-dp);}
 root.addEventListener('input',function(e){
   if(e.target.id==='hq'){histQ=e.target.value;var pos=e.target.selectionStart;render();var n=document.getElementById('hq');n.focus();n.setSelectionRange(pos,pos);return;}
-  if(e.target.name==='kind'){document.getElementById('mform').dataset.kind=e.target.value;syncCalc();}
+  if(e.target.name==='kind'){var MF=document.getElementById('mform'),kv=e.target.value;MF.dataset.kind=kv;
+    var want=kv==='template'?['完']:kv==='vtuber'?['構','草','線','完','拆']:['構','草','線','完'];
+    ALLST.forEach(function(s){var cb=MF.querySelector('input[name="stages"][value="'+s+'"]'),lab=MF.querySelector('[data-dn="'+s+'"]');cb.checked=want.indexOf(s)>=0;lab.hidden=!cb.checked;if(!cb.checked)lab.querySelector('input').checked=false;});
+    updBal();}
   if(e.target.name==='price'||e.target.name==='deposit')updBal();
   if(e.target.closest&&e.target.closest('fieldset')&&/^(license|extra|people|rush|autoPrice)$/.test(e.target.name)||e.target.classList.contains('ln-p')||e.target.classList.contains('ln-q'))syncCalc();
   if(e.target.name==='stages'){var lab=document.querySelector('[data-dn="'+e.target.value+'"]');lab.hidden=!e.target.checked;if(!e.target.checked)lab.querySelector('input').checked=false;}
