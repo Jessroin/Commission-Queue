@@ -99,8 +99,9 @@ h3{font-size:17px;margin:0;font-weight:700;color:var(--berry)}
 .steps i.on{background:var(--berry);border-color:var(--berry)}
 .steps b{font-size:13px;color:var(--berry);margin-left:6px;min-width:38px;text-align:right}
 .kanban.flow{grid-auto-columns:minmax(200px,1fr)}
-.foot-note{display:flex;flex-direction:column;align-items:center;gap:10px;margin:6px auto 14px;max-width:60ch}
-.foot-note p{margin:0;font-size:15px;line-height:1.7}
+.foot-note{display:flex;flex-direction:column;align-items:center;gap:10px;margin:6px auto 14px;max-width:100%}
+.foot-note p{margin:0;font-size:min(15px,calc((100vw - 28px) / 37));line-height:1.8}
+.foot-note p span{display:block;white-space:nowrap}
 .foot-note .btn{text-decoration:none}
 nav.tabs a.contact{color:var(--ink);text-decoration:none;font-size:14px;padding:4px 14px}
 nav.tabs a.contact:hover{background:linear-gradient(180deg,#FFAFC4,#FF8DAC)}
@@ -156,6 +157,7 @@ td .mini button.on{background:var(--berry);border-color:var(--berry);color:#fff}
 td .mini button.next{border:2px solid var(--ink);background:var(--butter-soft)}
 td .mini button:disabled{cursor:not-allowed;border-color:var(--line);color:var(--line);background:#fff}
 td .mini button.on:disabled{background:var(--berry);border-color:var(--berry);color:#fff;opacity:.85}
+.mini .btns{display:flex;gap:3px;justify-content:flex-end;width:152px;flex:none}
 .pct{font-size:14px;font-weight:700;color:var(--berry);min-width:42px;text-align:right;margin-left:6px}
 .toggle{border:none;background:none;padding:0;cursor:pointer}
 .right{text-align:center}
@@ -278,6 +280,7 @@ footer.foot::before{content:"";position:absolute;left:0;right:0;top:-12px;height
   table.main td.c-edit{border-bottom:none;justify-content:flex-end;padding-bottom:0}
   table.main td.c-edit::before{content:none}
   table.main td .mini{flex-wrap:wrap;justify-content:flex-end}
+  table.main td .mini .btns{width:auto}
 }
 </style>
 </head>
@@ -457,9 +460,9 @@ function shell(inner){
   var v=view();
   function tab(id,t){return '<a href="#'+id+'"'+(v===id?' aria-current="page"':'')+'>'+t+'</a>';}
   var nav=(unlocked()?tab('progress','委託進度')+tab('board','進度看板')+tab('orders','委託管理')+tab('history','歷史紀錄')+'<a href="#progress" data-act="logout" class="lock">登出</a>':'<a class="btn small primary contact" href="https://jessroin.github.io/Jessroin-Commission-Website/" target="_blank" rel="noopener">聯絡潔諾</a><a href="#login" class="lock"'+(v==='login'?' aria-current="page"':'')+'>後台登入</a>');
-  return '<header class="top"><div class="top-in"><a class="brand" href="#progress">潔諾 Jessroin<small>委託進度'+(unlocked()?'・後台':'')+'</small></a>'+
+  return '<header class="top"><div class="top-in"><a class="brand" href="#progress">潔諾 Jessroin'+(unlocked()?'<small>後台</small>':'')+'</a>'+
     '<nav class="tabs">'+nav+'</nav>'+(unlocked()?'<span class="save" id="save" aria-live="polite">'+esc(saveState)+'</span>':'')+'</div></header><main>'+syncBar()+inner+'</main>'+
-    '<footer class="foot">'+(v==='progress'?'<div class="foot-note"><p>這裡的排單是手動更新的!<br>如果你已經付了訂金，但名字還沒出現在這裡，請耐心等候，我會盡快更新。</p></div>':'')+'<div>潔諾 Jessroin・委託進度'+(PUB.updated?'・最後更新 '+esc(PUB.updated.replace(/-/g,'/')):'')+'</div></footer>';
+    '<footer class="foot">'+(v==='progress'?'<div class="foot-note"><p><span>這裡的排單是手動更新的!</span><span>如果你已經付了訂金，但名字還沒出現在這裡，請耐心等候，我會盡快更新。</span></p></div>':'')+'<div>潔諾 Jessroin・委託進度'+(PUB.updated?'・最後更新 '+esc(PUB.updated.replace(/-/g,'/')):'')+'</div></footer>';
 }
 
 function phase(o){return o.phase||(doneCount(o)===0?'queue':'doing');}
@@ -596,8 +599,8 @@ function table(list,manage){
   var h='<div class="tbl-wrap"><table class="main"><thead><tr><th>委託人</th><th>項目</th><th>授權範圍</th><th class="right">費用</th><th>訂金</th><th>尾款</th><th>'+(manage?'繪製進度':'進度')+'</th><th>排單</th><th>交稿日期</th><th>狀態</th><th></th></tr></thead><tbody>';
   list.forEach(function(o){
     var nd=doneCount(o);
-    var stepBtns=manage?'<div class="mini">'+o.stages.map(function(s,i){var on=i<nd,nx=i===nd,undo=i===nd-1;
-      return '<button class="'+(on?'on':'')+(nx?' next':'')+'" data-stage="'+o.id+'|'+i+'" title="'+SN[s]+(nx?'：按一下標記完成':undo?'：按一下取消完成':'')+'"'+(nx||undo?'':' disabled')+' aria-pressed="'+on+'">'+s+'</button>';}).join('')+'<span class="pct num">'+Math.round(prog(o)*100)+'%</span></div>':'<span class="pct num" style="margin:0">'+Math.round(prog(o)*100)+'%</span>';
+    var stepBtns=manage?'<div class="mini"><span class="btns">'+o.stages.map(function(s,i){var on=i<nd,nx=i===nd,undo=i===nd-1;
+      return '<button class="'+(on?'on':'')+(nx?' next':'')+'" data-stage="'+o.id+'|'+i+'" title="'+SN[s]+(nx?'：按一下標記完成':undo?'：按一下取消完成':'')+'"'+(nx||undo?'':' disabled')+' aria-pressed="'+on+'">'+s+'</button>';}).join('')+'</span><span class="pct num">'+Math.round(prog(o)*100)+'%</span></div>':'<span class="pct num" style="margin:0">'+Math.round(prog(o)*100)+'%</span>';
     var c=o.contact&&/^https?:/.test(o.contact)?' <a class="link" href="'+esc(o.contact)+'" target="_blank" rel="noopener" title="聯絡">↗</a>':'';
     h+='<tr><td data-l="委託人" class="c-who"><b>'+esc(o.client)+'</b>'+c+'</td><td data-l="項目" class="wrap">'+esc(o.item)+(o.note?'<div style="font-size:12px;color:var(--muted)">'+esc(o.note)+'</div>':'')+'</td><td data-l="授權範圍">'+licChip(o.license)+'</td><td data-l="費用" class="right num">'+money(o.price)+'</td>'+
       (o.kind==='template'?'<td colspan="2" data-l="全款"><button class="toggle" data-tog="'+o.id+'|full"><span class="chip '+(o.balancePaid?'paid':'unpaid')+'">全款 '+money(o.price)+' '+(o.balancePaid?'✓':'未付')+'</span></button></td>':
