@@ -453,13 +453,13 @@ function persist(){
 function commit(){render();persist();}
 
 /* ---------- views ---------- */
-function view(){var h=(location.hash||'').replace('#','');
+function view(){var h=(location.hash||'').replace('#','');if(h==='board')h='orders';
   if(['board','orders','history'].indexOf(h)>=0)return unlocked()?h:'login';
   return h==='login'&&!unlocked()?'login':'progress';}
 function shell(inner){
   var v=view();
   function tab(id,t){return '<a href="#'+id+'"'+(v===id?' aria-current="page"':'')+'>'+t+'</a>';}
-  var nav=(unlocked()?tab('progress','委託進度')+tab('board','進度看板')+tab('orders','委託管理')+tab('history','歷史紀錄')+'<a href="#progress" data-act="logout" class="lock">登出</a>':'<a class="btn small primary contact" href="https://jessroin.github.io/Jessroin-Commission-Website/" target="_blank" rel="noopener">聯絡潔諾</a><a href="#login" class="lock"'+(v==='login'?' aria-current="page"':'')+'>後台登入</a>');
+  var nav=(unlocked()?tab('progress','委託進度')+tab('orders','委託管理')+tab('history','歷史紀錄')+'<a href="#progress" data-act="logout" class="lock">登出</a>':'<a class="btn small primary contact" href="https://jessroin.github.io/Jessroin-Commission-Website/" target="_blank" rel="noopener">聯絡潔諾</a><a href="#login" class="lock"'+(v==='login'?' aria-current="page"':'')+'>後台登入</a>');
   return '<header class="top"><div class="top-in"><a class="brand" href="#progress">潔諾 Jessroin'+(unlocked()?'<small>後台</small>':'')+'</a>'+
     '<nav class="tabs">'+nav+'</nav>'+(unlocked()?'<span class="save" id="save" aria-live="polite">'+esc(saveState)+'</span>':'')+'</div></header><main>'+syncBar()+inner+'</main>'+
     '<footer class="foot">'+(v==='progress'?'<div class="foot-note"><p><span>這裡的排單是手動更新的!</span><span>如果你已經付了訂金，但名字還沒出現在這裡，請耐心等候，我會盡快更新。</span></p></div>':'')+'<div>潔諾 Jessroin・委託進度'+(PUB.updated?'・最後更新 '+esc(PUB.updated.replace(/-/g,'/')):'')+'</div></footer>';
@@ -502,8 +502,8 @@ function adminBoard(){
   var A=S.orders.filter(function(o){return o.status==='active';}).sort(byDue);
   var cols={};FLOW.forEach(function(f){cols[f[0]]=[];});
   A.forEach(function(o){cols[adminStep(o)].push(o);});
-  var h='<div class="row spread"><h2>進度看板<small>訂金 → 草稿 → 尾款 → 線稿 → 完稿</small></h2><button class="btn primary" data-act="new">＋ 新增委託</button></div>';
-  h+='<section class="panel" style="display:flex;flex-direction:column;gap:14px"><div class="kanban flow">';
+  var h='';
+  h+='<section class="panel" style="display:flex;flex-direction:column;gap:14px"><h3>進度看板<span class="cnt" style="font-size:14px;color:var(--muted);font-weight:500;margin-left:10px">訂金 → 草稿 → 尾款 → 線稿 → 完稿</span></h3><div class="kanban flow">';
   FLOW.forEach(function(f){
     var k=f[0],L=cols[k];
     h+='<div class="col"><div class="col-h"><b>'+f[1]+'</b><span>'+L.length+' 件</span></div>'+(L.length?'':'<div class="empty">沒有委託</div>');
@@ -590,7 +590,7 @@ function ordersView(){
   if(ioOpen)h+=ioPanel();
   if(ghOpen&&STATIC)h+=ghPanel();
   var AA=S.orders.filter(function(o){return o.status==='active';}),owedSum=AA.reduce(function(s,o){return s+owed(o);},0);
-  h+='<section class="tiles">'+tile('一般委託',AA.filter(function(o){return !o.kind;}).length+' 件','進行中',true)+tile('V皮',AA.filter(function(o){return o.kind==='vtuber';}).length+' 件','進行中',true)+tile('模板',AA.filter(function(o){return o.kind==='template';}).length+' 件','進行中',true)+tile('待收款項',money(owedSum),AA.filter(function(o){return !o.balancePaid;}).length+' 件尚未付清')+'</section>'+payPanel(AA);
+  h+='<section class="tiles">'+tile('一般委託',AA.filter(function(o){return !o.kind;}).length+' 件','進行中',true)+tile('V皮',AA.filter(function(o){return o.kind==='vtuber';}).length+' 件','進行中',true)+tile('模板',AA.filter(function(o){return o.kind==='template';}).length+' 件','進行中',true)+tile('待收款項',money(owedSum),AA.filter(function(o){return !o.balancePaid;}).length+' 件尚未付清')+'</section>'+adminBoard()+payPanel(AA);
   h+=table(A,true);
   return h;
 }
@@ -759,7 +759,7 @@ function stamp(o,k){if(o[k]){var dk=k==='depositPaid'?'depositDate':'balanceDate
 function render(){
   var v=view();
   var vo=viewing&&pubList().filter(function(o){return o.id===viewing;})[0];
-  root.innerHTML=shell(v==='progress'?boardView():v==='board'?adminBoard():v==='login'?loginView():v==='orders'?ordersView():historyView())+(editing&&unlocked()?modal(editing):'')+(vo?detailModal(vo):'');
+  root.innerHTML=shell(v==='progress'?boardView():v==='login'?loginView():v==='orders'?ordersView():historyView())+(editing&&unlocked()?modal(editing):'')+(vo?detailModal(vo):'');
   if(v==='login'){var p=document.getElementById('pw');if(p&&!loginBusy)p.focus();}
   if(editing){var c=document.getElementById('client');if(c&&!c.value)c.focus();}
 }
@@ -839,7 +839,7 @@ root.addEventListener('submit',function(e){
     var pw=document.getElementById('pw').value;if(!pw||loginBusy)return;
     if(!(window.crypto&&crypto.subtle)){loginErr='這個瀏覽器不支援解鎖，請換一個瀏覽器開啟。';render();return;}
     loginBusy=true;loginErr='';render();var k;
-    deriveKey(pw).then(function(key){k=key;return openVault(key);}).then(function(data){S=data;KEY=k;loginBusy=false;location.hash='#board';render();ghSync();},
+    deriveKey(pw).then(function(key){k=key;return openVault(key);}).then(function(data){S=data;KEY=k;loginBusy=false;location.hash='#orders';render();ghSync();},
       function(){loginBusy=false;loginErr='密碼不正確，請再試一次。';render();});
     return;
   }
