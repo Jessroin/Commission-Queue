@@ -273,7 +273,7 @@ footer.foot::before{content:"";position:absolute;left:0;right:0;top:-12px;height
 <div id="root"></div>
 <script id="pub" type="application/json">{"updated":"","items":[]}</script>
 <script id="vault" type="application/json">null</script>
-<script src="data.js"></script>
+<script>document.write('<script src="data.js?v='+Date.now()+'"><\/script>')</script>
 <script id="app">
 (function(){
 'use strict';
@@ -312,8 +312,37 @@ if(window.JN_DATA&&window.JN_DATA.vault){PUB=window.JN_DATA.pub;VAULT=window.JN_
 if(STATIC){try{var lr=JSON.parse(localStorage.getItem('jn-local')||'null');if(lr&&lr.vault&&lr.savedAt>FILE_AT){PUB=lr.pub;VAULT=lr.vault;LOCAL_AT=lr.savedAt;}}catch(e){}}
 function dataFile(){return 'window.JN_DATA='+JSON.stringify({pub:PUB,vault:VAULT,savedAt:LOCAL_AT||FILE_AT||Date.now()}).replace(/</g,'\\u003c')+';\n';}
 function downloadData(){try{var b=new Blob([dataFile()],{type:'text/javascript'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='data.js';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},2000);}catch(e){markSave('下載失敗',true);}}
-function syncBar(){if(!STATIC||!unlocked())return '';var dirty=LOCAL_AT>FILE_AT;
-  return '<div class="notice row spread" style="margin:0;'+(dirty?'background:var(--pink);border-color:var(--pink-deep)':'')+'"><span>'+(dirty?'有新的修改只存在這台裝置。下載 data.js 並上傳到 GitHub 後，委託人才會看到更新。':'GitHub 版：修改會先存在這台裝置，要更新公開頁請下載 data.js 上傳到 GitHub。')+'</span><button class="btn small" data-act="dl">下載 data.js</button></div>';}
+var ghState='',ghErr='',ghOpen=false,ghSha=null;
+function gh(){return S&&S.settings&&S.settings.gh&&S.settings.gh.token?S.settings.gh:null;}
+function ghUrl(g){return 'https://api.github.com/repos/'+encodeURIComponent(g.owner)+'/'+encodeURIComponent(g.repo)+'/contents/data.js';}
+function ghFetch(g,method,body){
+  return fetch(ghUrl(g)+(method==='GET'?'?ref='+encodeURIComponent(g.branch||'main')+'&t='+Date.now():''),{method:method,cache:'no-store',headers:{'Authorization':'Bearer '+g.token,'Accept':'application/vnd.github+json'},body:body?JSON.stringify(body):undefined})
+    .then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(!r.ok)throw {status:r.status,msg:j.message||('HTTP '+r.status)};return j;});});
+}
+function ghSync(){var g=gh();if(!STATIC||!g)return;
+  ghPull(g).then(function(d){
+    if(d&&d.vault&&d.savedAt>Math.max(LOCAL_AT,FILE_AT)){VAULT=d.vault;PUB=d.pub;FILE_AT=d.savedAt;LOCAL_AT=0;return openVault(KEY).then(function(s){S=s;render();});}
+    if(d&&LOCAL_AT>(d.savedAt||0))persist();
+  }).catch(function(e){ghErr=ghMsg(e);render();});}
+function u8b64(s){return btoa(unescape(encodeURIComponent(s)));}
+function b64u8(s){return decodeURIComponent(escape(atob(String(s).replace(/\s/g,''))));}
+function ghPull(g){return ghFetch(g,'GET').then(function(j){ghSha=j.sha;var txt=b64u8(j.content),m=txt.match(/window\.JN_DATA=([\s\S]*);\s*$/);return m?JSON.parse(m[1]):null;});}
+function ghPush(g,content,retry){
+  var p=ghSha?Promise.resolve():ghFetch(g,'GET').then(function(j){ghSha=j.sha;},function(e){if(e.status!==404)throw e;});
+  return p.then(function(){var body={message:'更新委託進度 '+new Date().toLocaleString('zh-TW'),content:u8b64(content),branch:g.branch||'main'};if(ghSha)body.sha=ghSha;return ghFetch(g,'PUT',body);})
+    .then(function(j){ghSha=j.content&&j.content.sha;},function(e){if(!retry&&(e.status===409||e.status===422)){ghSha=null;return ghPush(g,content,true);}throw e;});
+}
+function ghMsg(e){var s=e&&e.status;return s===401?'權杖無效或已過期':s===403?'權杖沒有寫入權限':s===404?'找不到這個 repository':(e&&e.msg)||'連線失敗';}
+function syncBar(){if(!STATIC||!unlocked())return '';
+  if(!gh())return '<div class="notice row spread" style="margin:0"><span>還沒設定 GitHub 自動更新，設定一次之後，每次修改都會直接更新公開頁。</span><button class="btn small" data-act="gh">設定</button></div>';
+  if(ghErr)return '<div class="notice row spread" style="margin:0;background:var(--pink);border-color:var(--pink-deep)"><span>GitHub 更新失敗：'+esc(ghErr)+'</span><span class="row" style="gap:6px"><button class="btn small" data-act="ghretry">重試</button><button class="btn small ghost" data-act="gh">設定</button></span></div>';
+  return '';}
+function ghPanel(){var g=(S.settings&&S.settings.gh)||{owner:'jessroin',repo:'',branch:'main',token:''};
+  return '<section class="panel" style="display:flex;flex-direction:column;gap:12px"><h3>GitHub 自動更新設定</h3>'+
+  '<p class="calc" style="margin:0">設定後，每次在後台修改都會直接更新 GitHub 上的 data.js，約 1 分鐘後公開頁就會變。權杖會跟委託資料一起用你的密碼加密，不會以明碼存在任何地方。</p>'+
+  '<div class="form">'+f('gh-owner','GitHub 帳號','<input id="gh-owner" value="'+esc(g.owner)+'">')+f('gh-repo','Repository 名稱','<input id="gh-repo" value="'+esc(g.repo)+'" placeholder="例：Jessroin-Commission-Queue">')+
+  f('gh-branch','分支','<input id="gh-branch" value="'+esc(g.branch||'main')+'">')+f('gh-token','存取權杖（Fine-grained token）','<input id="gh-token" type="password" autocomplete="off" value="'+esc(g.token)+'" placeholder="github_pat_…">')+'</div>'+
+  '<div class="row"><button class="btn primary" data-act="ghsave">儲存並測試連線</button>'+(gh()?'<button class="btn ghost" data-act="ghoff">取消自動更新</button>':'')+'<span class="calc" id="ghmsg">'+esc(ghState)+'</span></div></section>';}
 var S=null, KEY=null, viewing=null, loginErr='', loginBusy=false;
 function unlocked(){return !!S;}
 /* ---------- 後台加密：資料以密碼加密 (PBKDF2 + AES-GCM)，頁面原始碼裡沒有明文資料或密碼 ---------- */
@@ -384,9 +413,13 @@ function buildDoc(){
 function markSave(t,err){saveState=t;var el=document.getElementById('save');if(el){el.textContent=t;el.className='save'+(err?' err':'');}}
 function persist(){
   if(!unlocked())return;
-  if(STATIC){markSave('儲存中…');sealVault().then(function(v){VAULT=v;PUB=pubData();LOCAL_AT=Date.now();
-      try{localStorage.setItem('jn-local',JSON.stringify({pub:PUB,vault:VAULT,savedAt:LOCAL_AT}));markSave('已存在這台裝置');}catch(e){markSave('這個瀏覽器不能儲存',true);}
-      var sb=document.querySelector('main');if(sb){render();}});return;}
+  if(STATIC){markSave('儲存中…');clearTimeout(saveTimer);saveTimer=setTimeout(function(){
+      sealVault().then(function(v){VAULT=v;PUB=pubData();LOCAL_AT=Date.now();
+        try{localStorage.setItem('jn-local',JSON.stringify({pub:PUB,vault:VAULT,savedAt:LOCAL_AT}));}catch(e){}
+        var g=gh();if(!g){markSave('已儲存');render();return;}
+        markSave('更新到 GitHub…');
+        return ghPush(g,dataFile()).then(function(){FILE_AT=LOCAL_AT;ghErr='';markSave('已更新');render();},function(e){ghErr=ghMsg(e);markSave('更新失敗',true);render();});
+      });},800);return;}
   if(!artifact){markSave('目前無法儲存',true);return;}
   markSave('儲存中…');
   clearTimeout(saveTimer);
@@ -533,8 +566,9 @@ function payPanel(A){
 function ordersView(){
   var A=S.orders.filter(function(o){return o.status==='active'||o.status==='paused';}).sort(byDue);
   var h='<div class="row spread"><h2>委託管理<small>進行中與暫停的委託，完成後會移到歷史紀錄</small></h2><div class="row">'+
-    '<button class="btn ghost" data-act="io">備份／匯入</button><button class="btn primary" data-act="new">＋ 新增委託</button></div></div>';
+    (STATIC?'<button class="btn ghost" data-act="gh">GitHub 設定</button>':'')+'<button class="btn ghost" data-act="io">備份／匯入</button><button class="btn primary" data-act="new">＋ 新增委託</button></div></div>';
   if(ioOpen)h+=ioPanel();
+  if(ghOpen&&STATIC)h+=ghPanel();
   var AA=S.orders.filter(function(o){return o.status==='active';}),owedSum=AA.reduce(function(s,o){return s+owed(o);},0);
   h+='<section class="tiles">'+tile('一般委託',AA.filter(function(o){return !o.kind;}).length+' 件','進行中',true)+tile('V皮',AA.filter(function(o){return o.kind==='vtuber';}).length+' 件','進行中',true)+tile('模板',AA.filter(function(o){return o.kind==='template';}).length+' 件','進行中',true)+tile('待收款項',money(owedSum),AA.filter(function(o){return !o.balancePaid;}).length+' 件尚未付清')+'</section>'+payPanel(AA);
   h+=table(A,true);
@@ -738,6 +772,17 @@ root.addEventListener('click',function(e){
   if(d.edit){editing=JSON.parse(JSON.stringify(find(d.edit)));render();return;}
   switch(d.act){
     case 'dl':downloadData();break;
+    case 'gh':ghOpen=!ghOpen;ghState='';if(ghOpen&&view()!=='orders'){location.hash='#orders';}render();break;
+    case 'ghretry':ghErr='';persist();render();break;
+    case 'ghoff':S.settings=S.settings||{};delete S.settings.gh;ghOpen=false;commit();break;
+    case 'ghsave':
+      var ng={owner:document.getElementById('gh-owner').value.trim(),repo:document.getElementById('gh-repo').value.trim(),branch:document.getElementById('gh-branch').value.trim()||'main',token:document.getElementById('gh-token').value.trim()};
+      var gm=document.getElementById('ghmsg');
+      if(!ng.owner||!ng.repo||!ng.token){gm.textContent='請把帳號、Repository 和權杖都填好。';return;}
+      gm.textContent='測試連線中…';ghSha=null;
+      ghFetch(ng,'GET').then(function(j){ghSha=j.sha;return true;},function(e){if(e.status===404)return fetch('https://api.github.com/repos/'+encodeURIComponent(ng.owner)+'/'+encodeURIComponent(ng.repo),{headers:{'Authorization':'Bearer '+ng.token}}).then(function(r){if(!r.ok)throw {status:r.status};return true;});throw e;})
+        .then(function(){S.settings=S.settings||{};S.settings.gh=ng;ghErr='';ghOpen=false;ghState='';commit();markSave('連線成功，更新到 GitHub…');},function(e){gm.textContent='連線失敗：'+ghMsg(e);});
+      break;
     case 'new':editing=blank();render();break;
     case 'close':editing=null;render();break;
     case 'addline':
@@ -774,7 +819,7 @@ root.addEventListener('submit',function(e){
     var pw=document.getElementById('pw').value;if(!pw||loginBusy)return;
     if(!(window.crypto&&crypto.subtle)){loginErr='這個瀏覽器不支援解鎖，請換一個瀏覽器開啟。';render();return;}
     loginBusy=true;loginErr='';render();var k;
-    deriveKey(pw).then(function(key){k=key;return openVault(key);}).then(function(data){S=data;KEY=k;loginBusy=false;location.hash='#board';render();},
+    deriveKey(pw).then(function(key){k=key;return openVault(key);}).then(function(data){S=data;KEY=k;loginBusy=false;location.hash='#board';render();ghSync();},
       function(){loginBusy=false;loginErr='密碼不正確，請再試一次。';render();});
     return;
   }
